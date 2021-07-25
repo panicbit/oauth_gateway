@@ -1,14 +1,17 @@
+use std::net::SocketAddr;
 use std::path::Path;
 use std::fs;
 use anyhow::*;
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Config {
+    pub listen_addr: SocketAddr,
     pub upstream_authority: String,
     pub upstream_use_https: bool,
     pub auth_uri: String,
     pub token_uri: String,
+    pub introspect_uri: String,
     pub client_id: String,
     pub client_secret: String,
 }
