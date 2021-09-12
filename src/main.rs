@@ -45,6 +45,17 @@ pub async fn main() -> Result<()> {
                 async move {
                     let response = app.proxy_request(&client_addr, request).await;
 
+                    if let Err(err) = response {
+                        eprintln!("{}", err);
+
+                        let response = Response::builder()
+                            .status(StatusCode::INTERNAL_SERVER_ERROR)
+                            .body(Body::empty())
+                            .unwrap();
+
+                        return Ok(response)
+                    }
+
                     response
                 }
             });
@@ -86,11 +97,12 @@ impl App {
         let token_info = if is_public_route {
             None
         } else {
-            let token_info = auth::verify_access_token(&self.oidc, &request).await;
+            let token_info = auth::verify_access_token(&self.oidc, &request).await
+                .context("Token verification failed")?;
 
             match token_info {
-                Ok(Some(token_info)) => Some(token_info),
-                Ok(None) => {
+                Some(token_info) => Some(token_info),
+                None => {
                     eprintln!("Unauthenticated");
 
                     let response = Response::builder()
@@ -100,16 +112,6 @@ impl App {
 
                     return Ok(response)
                 }
-                Err(err) => {
-                    eprintln!("Token verification failed: {:?}", err);
-
-                    let response = Response::builder()
-                        .status(StatusCode::INTERNAL_SERVER_ERROR)
-                        .body(Body::empty())
-                        .unwrap();
-
-                    return Ok(response);
-                },
             }
         };
 
