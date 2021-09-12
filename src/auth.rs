@@ -48,7 +48,10 @@ fn extract_access_token(request: &Request<Body>) -> Option<AccessToken> {
 pub async fn verify_access_token(oidc: &CoreClient, request: &Request<Body>) -> Result<Option<IntrospectionResult>> {
     let access_token = match extract_access_token(request) {
         Some(access_token) => access_token,
-        None => return Ok(None),
+        None => {
+            eprintln!("access token missing in header");
+            return Ok(None)
+        },
     };
 
     let introspection = oidc.introspect(&access_token)
@@ -58,6 +61,7 @@ pub async fn verify_access_token(oidc: &CoreClient, request: &Request<Body>) -> 
         .context("Token introspection failed")?;
 
     if !introspection.active() {
+        eprintln!("token is not valid anymore");
         return Ok(None);
     }
 
