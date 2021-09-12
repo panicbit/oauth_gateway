@@ -111,8 +111,7 @@ impl App {
             *request.uri_mut() = upstream_uri;
         }
 
-        request.headers_mut().remove(HOST);
-        request.headers_mut().remove(AUTHORIZATION);
+        remove_dangerous_headers(&mut request);
 
         let mut upstream_request = reqwest::Request::try_from(request)
             .expect("failed to convert request");
@@ -129,8 +128,8 @@ impl App {
             upstream_request.headers_mut().insert(FORWARDED, forwarded);
         }
 
-        let is_authenticated_str = if user_info.is_some() { "true" } else { "false" };
-        upstream_request.headers_mut().insert("X-User-Authenticated", HeaderValue::from_static(is_authenticated_str));
+        // let is_authenticated_str = if user_info.is_some() { "true" } else { "false" };
+        // upstream_request.headers_mut().insert("X-User-Authenticated", HeaderValue::from_static(is_authenticated_str));
 
         if user_info.is_some() {
             upstream_request.headers_mut().insert("X-User-Id", HeaderValue::from_static("12345"));
@@ -151,4 +150,13 @@ impl App {
 
         response.body(body).expect("failed to set response body")
     }
+}
+
+fn remove_dangerous_headers(request: &mut Request<Body>) {
+    let headers = request.headers_mut();
+
+    headers.remove(HOST);
+    headers.remove(AUTHORIZATION);
+    headers.remove("X-User-Id");
+    headers.remove("X-User-Name");
 }
