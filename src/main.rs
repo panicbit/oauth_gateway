@@ -154,9 +154,9 @@ impl App {
         let mut upstream_response = self.http.execute(upstream_request).await
             .context("upstream request failed")?;
         let mut response = Response::builder()
-        // loses status line text
-        .status(upstream_response.status())
-        .version(http_version);
+            // loses status line text
+            .status(upstream_response.status())
+            .version(http_version);
 
         mem::swap(upstream_response.headers_mut(), response.headers_mut().context("failed to get builder headers")?);
 
