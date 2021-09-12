@@ -94,7 +94,47 @@ impl App {
     }
 
     async fn proxy_request(&self, client_addr: &SocketAddr, mut request: Request<Body>) -> Result<Response<Body>> {
-        let is_public_route = self.is_public_route(request.uri());
+        let host = match request.headers().get(HOST) {
+            Some(host) => host,
+            None => {
+                let response = Response::builder()
+                    .status(400)
+                    .body(Body::empty())
+                    .unwrap();
+
+                return Ok(response)
+            }
+        };
+        let host = match host.to_str() {
+            Ok(host) => host.to_ascii_lowercase(),
+            Err(_) => {
+                let response = Response::builder()
+                    .status(400)
+                    .body(Body::empty())
+                    .unwrap();
+
+                return Ok(response)
+            }
+        };
+        let server = self.config.servers.iter()
+            .find(|server| server.hostname == host);
+        let server = match server {
+            Some(server) => server,
+            None => {
+                eprintln!("server for host '{}' not defined", host);
+
+                let response = Response::builder()
+                    .status(400)
+                    .body(Body::empty())
+                    .unwrap();
+
+                return Ok(response)
+            },
+        };
+
+        println!("selected server '{}'", server.hostname);
+
+        let is_public_route = server.is_public_route(request.uri());
 
         let token_info = if is_public_route {
             None
@@ -121,11 +161,11 @@ impl App {
             eprintln!("{:#?}", token_info);
         }
 
-        let upstream_authority = self.config.upstream_authority.parse()
+        let upstream_authority = server.upstream.parse()
             .context("failed to parse upstream_host as authority")?;
-        let upstream_scheme = match self.config.upstream_use_https {
-                true => Scheme::HTTPS,
-                false => Scheme::HTTP,
+        let upstream_scheme = match server.upstream_tls {
+            true => Scheme::HTTPS,
+            false => Scheme::HTTP,
         };
         let http_version = request.version();
 
@@ -164,12 +204,6 @@ impl App {
         let response = response.body(body).context("failed to set response body")?;
 
         Ok(response)
-    }
-
-    fn is_public_route(&self, uri: &Uri) -> bool {
-        let path = uri.path();
-
-        self.config.public_route_patterns.is_match(path)
     }
 }
 

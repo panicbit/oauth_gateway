@@ -5,17 +5,17 @@ use anyhow::*;
 use regex::RegexSet;
 use serde::{Deserialize, Deserializer, de};
 
+use self::{openid::Openid, server::Server};
+
+mod openid;
+mod server;
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub listen_addr: SocketAddr,
-    pub upstream_authority: String,
-    pub upstream_use_https: bool,
-    pub issuer_url: String,
-    pub introspect_url: String,
-    pub client_id: String,
-    pub client_secret: String,
-    #[serde(deserialize_with = "deserialize_patterns")]
-    pub public_route_patterns: RegexSet,
+    pub openid: Openid,
+    #[serde(rename = "server")]
+    pub servers: Vec<Server>,
 }
 
 impl Config {

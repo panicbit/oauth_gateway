@@ -10,17 +10,18 @@ mod async_client;
 use crate::Config;
 
 pub async fn create_oidc_client(config: &Config) -> Result<CoreClient> {
+    let openid = &config.openid;
     let provider_metadata = CoreProviderMetadata::discover_async(
-            IssuerUrl::new(config.issuer_url.to_string())?,
+            IssuerUrl::new(openid.issuer_url.to_string())?,
             async_client::async_http_client,
         )
         .await
         .context("Failed to discover oauth endpoints")?;
 
-    let client_id = ClientId::new(config.client_id.clone());
-    let introspection_url = IntrospectionUrl::new(config.introspect_url.clone())
+    let client_id = ClientId::new(openid.client_id.clone());
+    let introspection_url = IntrospectionUrl::new(openid.introspect_url.clone())
         .context("Failed to create introspection URL")?;
-    let client_secret = ClientSecret::new(config.client_secret.clone());
+    let client_secret = ClientSecret::new(openid.client_secret.clone());
 
     let oidc_client = CoreClient::from_provider_metadata(provider_metadata, client_id, Some(client_secret))
         .set_introspection_uri(introspection_url);
