@@ -9,14 +9,14 @@ use crate::Config;
 
 pub async fn create_oidc_client(config: &Config) -> Result<CoreClient> {
     let provider_metadata = CoreProviderMetadata::discover_async(
-            IssuerUrl::new("https://horizonpedia.com:9001/auth/realms/Horizonpedia".to_string())?,
+            IssuerUrl::new(config.issuer_url.to_string())?,
             async_http_client, // FIXME: async_http_client does not reuse http client
         )
         .await
         .context("Failed to discover oauth endpoints")?;
 
     let client_id = ClientId::new(config.client_id.clone());
-    let introspection_url = IntrospectionUrl::new(config.introspect_uri.clone())
+    let introspection_url = IntrospectionUrl::new(config.introspect_url.clone())
         .context("Failed to create introspection URL")?;
     let client_secret = ClientSecret::new(config.client_secret.clone());
 

@@ -9,9 +9,8 @@ pub struct Config {
     pub listen_addr: SocketAddr,
     pub upstream_authority: String,
     pub upstream_use_https: bool,
-    pub auth_uri: String,
-    pub token_uri: String,
-    pub introspect_uri: String,
+    pub issuer_url: String,
+    pub introspect_url: String,
     pub client_id: String,
     pub client_secret: String,
 }
