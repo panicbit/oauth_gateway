@@ -5,12 +5,14 @@ use hyper::{Body, Request, header::AUTHORIZATION};
 use openidconnect::{AccessToken, ClientId, ClientSecret, EmptyExtraTokenFields, IntrospectionUrl, IssuerUrl, StandardTokenIntrospectionResponse, TokenIntrospectionResponse, core::{CoreClient, CoreProviderMetadata}, reqwest::async_http_client};
 use oauth2::basic::BasicTokenType;
 
+mod async_client;
+
 use crate::Config;
 
 pub async fn create_oidc_client(config: &Config) -> Result<CoreClient> {
     let provider_metadata = CoreProviderMetadata::discover_async(
             IssuerUrl::new(config.issuer_url.to_string())?,
-            async_http_client, // FIXME: async_http_client does not reuse http client
+            async_client::async_http_client,
         )
         .await
         .context("Failed to discover oauth endpoints")?;
