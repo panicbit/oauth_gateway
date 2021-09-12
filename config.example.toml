@@ -1,13 +1,21 @@
 listen_addr = "0.0.0.0:8765"
+
+[openid]
 issuer_url = "https://oauth.example.org"
 introspect_url = "https://oauth.example.org/token/introspect"
 client_id = "client id"
 client_secret = "client secret"
 
-upstream_authority = "example.org"
-upstream_use_https = true
+[[server]]
+hostname = "example.org"
+upstream = "localhost:9090"
+public_routes = [
+    '.*',
+]
 
-public_route_patterns = [
-    '/news',
+[[server]]
+hostname = "api.example.org"
+upstream = "localhost:9091"
+public_routes = [
     '/version',
 ]
