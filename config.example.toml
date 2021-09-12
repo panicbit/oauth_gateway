@@ -1,4 +1,4 @@
-listen_addr = "0.0.0.0:8765"
+listen_addr = "0.0.0.0:9000"
 
 [openid]
 issuer_url = "https://oauth.example.org"
@@ -7,14 +7,14 @@ client_id = "client id"
 client_secret = "client secret"
 
 [[server]]
-hostname = "example.org"
+host = "example.org:9000"
 upstream = "localhost:9090"
 public_routes = [
     '.*',
 ]
 
 [[server]]
-hostname = "api.example.org"
+host = "api.example.org:9000"
 upstream = "localhost:9091"
 public_routes = [
     '/version',

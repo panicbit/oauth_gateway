@@ -117,7 +117,7 @@ impl App {
             }
         };
         let server = self.config.servers.iter()
-            .find(|server| server.hostname == host);
+            .find(|server| server.host == host);
         let server = match server {
             Some(server) => server,
             None => {
@@ -132,7 +132,7 @@ impl App {
             },
         };
 
-        println!("selected server '{}'", server.hostname);
+        println!("selected server '{}'", server.host);
 
         let is_public_route = server.is_public_route(request.uri());
 

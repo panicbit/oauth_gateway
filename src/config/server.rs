@@ -5,7 +5,7 @@ use serde::{Deserialize, Deserializer, de};
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Server {
-    pub hostname: String,
+    pub host: String,
     pub upstream: String,
     #[serde(default)]
     pub upstream_tls: bool,
