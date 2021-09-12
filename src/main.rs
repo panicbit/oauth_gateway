@@ -126,7 +126,8 @@ impl App {
             parts.scheme = Some(upstream_scheme);
             parts.authority = Some(upstream_authority);
 
-            let upstream_uri = Uri::from_parts(parts).expect("failed to build upstream uri");
+            let upstream_uri = Uri::from_parts(parts)
+                .context("failed to build upstream uri")?;
 
             *request.uri_mut() = upstream_uri;
         }
@@ -143,17 +144,16 @@ impl App {
         }
 
         let mut upstream_response = self.http.execute(upstream_request).await
-            .expect("upstream request failed");
+            .context("upstream request failed")?;
         let mut response = Response::builder()
         // loses status line text
         .status(upstream_response.status())
         .version(http_version);
 
-        mem::swap(upstream_response.headers_mut(), response.headers_mut()
-            .expect("failed to get builder headers"));
+        mem::swap(upstream_response.headers_mut(), response.headers_mut().context("failed to get builder headers")?);
 
         let body = Body::wrap_stream(upstream_response.bytes_stream());
-        let response = response.body(body).expect("failed to set response body");
+        let response = response.body(body).context("failed to set response body")?;
 
         Ok(response)
     }
