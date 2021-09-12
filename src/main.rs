@@ -115,6 +115,10 @@ impl App {
             }
         };
 
+        if let Some(token_info) = &token_info {
+            eprintln!("{:#?}", token_info);
+        }
+
         let upstream_authority = self.config.upstream_authority.parse()
             .context("failed to parse upstream_host as authority")?;
         let upstream_scheme = match self.config.upstream_use_https {
