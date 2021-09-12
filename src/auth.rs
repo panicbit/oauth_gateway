@@ -2,7 +2,8 @@ use std::str;
 
 use anyhow::*;
 use hyper::{Body, Request, header::AUTHORIZATION};
-use openidconnect::{AccessToken, ClientId, ClientSecret, IntrospectionUrl, IssuerUrl, TokenIntrospectionResponse, core::{CoreClient, CoreProviderMetadata}, reqwest::async_http_client};
+use openidconnect::{AccessToken, ClientId, ClientSecret, EmptyExtraTokenFields, IntrospectionUrl, IssuerUrl, StandardTokenIntrospectionResponse, TokenIntrospectionResponse, core::{CoreClient, CoreProviderMetadata}, reqwest::async_http_client};
+use oauth2::basic::BasicTokenType;
 
 use crate::Config;
 
@@ -42,7 +43,7 @@ fn extract_access_token(request: &Request<Body>) -> Option<AccessToken> {
     Some(token)
 }
 
-pub async fn verify_access_token(oidc: &CoreClient, request: &Request<Body>) -> Result<Option<()>> {
+pub async fn verify_access_token(oidc: &CoreClient, request: &Request<Body>) -> Result<Option<IntrospectionResult>> {
     let access_token = match extract_access_token(request) {
         Some(access_token) => access_token,
         None => return Ok(None),
@@ -54,10 +55,11 @@ pub async fn verify_access_token(oidc: &CoreClient, request: &Request<Body>) -> 
         .await
         .context("Token introspection failed")?;
 
-    if introspection.active() {
-        return Ok(Some(()));
+    if !introspection.active() {
+        return Ok(None);
     }
 
-    Ok(None)
+    Ok(Some(introspection))
 }
 
+pub type IntrospectionResult = StandardTokenIntrospectionResponse<EmptyExtraTokenFields, BasicTokenType>;

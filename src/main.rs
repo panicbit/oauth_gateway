@@ -3,11 +3,13 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::mem;
 
+use auth::IntrospectionResult;
 use hyper::header::{AUTHORIZATION, FORWARDED, HOST, HeaderValue};
 use hyper::http::uri::Scheme;
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server, Uri};
+use oauth2::TokenIntrospectionResponse;
 use openidconnect::core::CoreClient;
 use reqwest::Client;
 use anyhow::*;
@@ -31,19 +33,19 @@ pub async fn main() -> Result<()> {
     // incoming HTTP requests on said connection.
     let make_service = make_service_fn(|socket: &AddrStream| {
         let app = app.clone();
-        let remote_addr = Arc::new(socket.remote_addr());
+        let client_addr = Arc::new(socket.remote_addr());
         // This is the `Service` that will handle the connection.
         // `service_fn` is a helper to convert a function that
         // returns a Response into a `Service`.
         async move {
             let service = service_fn(move |request| {
                 let app = app.clone();
-                let remote_addr = remote_addr.clone();
+                let client_addr = client_addr.clone();
 
                 async move {
-                    let response = app.proxy_request(&remote_addr, request).await;
+                    let response = app.proxy_request(&client_addr, request).await;
 
-                    Ok::<_, Error>(response)
+                    response
                 }
             });
 
@@ -78,10 +80,10 @@ impl App {
         })
     }
 
-    async fn proxy_request(&self, remote_addr: &SocketAddr, mut request: Request<Body>) -> Response<Body> {
-        let user_info = auth::verify_access_token(&self.oidc, &request).await;
-        let user_info = match user_info {
-            Ok(user_info) => user_info,
+    async fn proxy_request(&self, client_addr: &SocketAddr, mut request: Request<Body>) -> Result<Response<Body>> {
+        let token_info = auth::verify_access_token(&self.oidc, &request).await;
+        let token_info = match token_info {
+            Ok(token_info) => token_info,
             Err(err) => {
                 eprintln!("Token verification failed: {:?}", err);
 
@@ -90,7 +92,7 @@ impl App {
                     .body(Body::empty())
                     .unwrap();
 
-                return response;
+                return Ok(response);
             },
         };
 
@@ -113,27 +115,13 @@ impl App {
 
         remove_dangerous_headers(&mut request);
 
-        let mut upstream_request = reqwest::Request::try_from(request)
-            .expect("failed to convert request");
-
-        {
-            let addr = match remote_addr {
-                SocketAddr::V4(v4) => v4.to_string(),
-                SocketAddr::V6(v6) => format!("\"{}\"", v6),
-            };
-            let forwarded = format!("for={}", addr);
-            let forwarded = HeaderValue::from_str(&forwarded)
-                .expect("Failed to construct forwarded header value");
-
-            upstream_request.headers_mut().insert(FORWARDED, forwarded);
-        }
+        let mut upstream_request = create_upstream_request(request, client_addr);
 
         // let is_authenticated_str = if user_info.is_some() { "true" } else { "false" };
         // upstream_request.headers_mut().insert("X-User-Authenticated", HeaderValue::from_static(is_authenticated_str));
 
-        if user_info.is_some() {
-            upstream_request.headers_mut().insert("X-User-Id", HeaderValue::from_static("12345"));
-            upstream_request.headers_mut().insert("X-User-Name", HeaderValue::from_static("tester"));
+        if let Some(token_info) = token_info {
+            enrich_request_with_token_info(&mut upstream_request, &token_info)?;
         }
 
         let mut upstream_response = self.http.execute(upstream_request).await
@@ -147,9 +135,27 @@ impl App {
             .expect("failed to get builder headers"));
 
         let body = Body::wrap_stream(upstream_response.bytes_stream());
+        let response = response.body(body).expect("failed to set response body");
 
-        response.body(body).expect("failed to set response body")
+        Ok(response)
     }
+}
+
+fn create_upstream_request(request: Request<Body>, client_addr: &SocketAddr) -> reqwest::Request {
+    let mut upstream_request = reqwest::Request::try_from(request)
+        .expect("failed to convert request");
+    {
+        let addr = match client_addr {
+            SocketAddr::V4(v4) => v4.to_string(),
+            SocketAddr::V6(v6) => format!("\"{}\"", v6),
+        };
+        let forwarded = format!("for={}", addr);
+        let forwarded = HeaderValue::from_str(&forwarded)
+            .expect("Failed to construct forwarded header value");
+
+        upstream_request.headers_mut().insert(FORWARDED, forwarded);
+    }
+    upstream_request
 }
 
 fn remove_dangerous_headers(request: &mut Request<Body>) {
@@ -159,4 +165,18 @@ fn remove_dangerous_headers(request: &mut Request<Body>) {
     headers.remove(AUTHORIZATION);
     headers.remove("X-User-Id");
     headers.remove("X-User-Name");
+}
+
+fn enrich_request_with_token_info(request: &mut reqwest::Request, token_info: &IntrospectionResult) -> Result<()> {
+    let headers = request.headers_mut();
+
+    if let Some(user_id) = token_info.sub() {
+        headers.insert("X-User-Id", user_id.parse()?);
+    }
+
+    if let Some(username) = token_info.username() {
+        request.headers_mut().insert("X-User-Name", username.parse()?);
+    }
+
+    Ok(())
 }

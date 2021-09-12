@@ -13,3 +13,4 @@ serde = { version = "1.0.126", features = ["derive"] }
 toml = "0.5.8"
 anyhow = "1.0.42"
 openidconnect = "2.1.0"
+oauth2 = "4.1.0"

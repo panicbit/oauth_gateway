@@ -590,6 +590,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "hyper",
+ "oauth2",
  "openidconnect",
  "reqwest",
  "serde",
