@@ -1,0 +1,14 @@
+listen_addr = "0.0.0.0:8765"
+auth_uri = "https://oauth.example.org/auth"
+token_uri = "https://oauth.example.org/token"
+introspect_uri = "https://oauth.example.org/token/introspect"
+client_id = "client id"
+client_secret = "client secret"
+
+upstream_authority = "example.org"
+upstream_use_https = true
+
+public = [
+    "/news.*",
+    "/version",
+]
