@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::mem;
 
 use auth::IntrospectionResult;
+use header::{X_USER_ID, X_USER_NAME};
 use hyper::header::{AUTHORIZATION, FORWARDED, HOST, HeaderValue};
 use hyper::http::uri::Scheme;
 use hyper::server::conn::AddrStream;
@@ -17,6 +18,7 @@ use self::config::Config;
 
 mod config;
 mod auth;
+mod header;
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
@@ -193,19 +195,19 @@ fn remove_dangerous_headers(request: &mut Request<Body>) {
 
     headers.remove(HOST);
     headers.remove(AUTHORIZATION);
-    headers.remove("X-User-Id");
-    headers.remove("X-User-Name");
+    headers.remove(X_USER_ID);
+    headers.remove(X_USER_NAME);
 }
 
 fn enrich_request_with_token_info(request: &mut reqwest::Request, token_info: &IntrospectionResult) -> Result<()> {
     let headers = request.headers_mut();
 
     if let Some(user_id) = token_info.sub() {
-        headers.insert("X-User-Id", user_id.parse()?);
+        headers.insert(X_USER_ID, user_id.parse()?);
     }
 
     if let Some(username) = token_info.username() {
-        request.headers_mut().insert("X-User-Name", username.parse()?);
+        request.headers_mut().insert(X_USER_NAME, username.parse()?);
     }
 
     Ok(())
