@@ -7,7 +7,7 @@ client_secret = "client secret"
 upstream_authority = "example.org"
 upstream_use_https = true
 
-public = [
-    "/news.*",
-    "/version",
+public_route_patterns = [
+    '/news',
+    '/version',
 ]

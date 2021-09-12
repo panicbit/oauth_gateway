@@ -8,7 +8,7 @@ use hyper::header::{AUTHORIZATION, FORWARDED, HOST, HeaderValue};
 use hyper::http::uri::Scheme;
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Request, Response, Server, Uri};
+use hyper::{Body, Request, Response, Server, StatusCode, Uri};
 use oauth2::TokenIntrospectionResponse;
 use openidconnect::core::CoreClient;
 use reqwest::Client;
@@ -81,22 +81,40 @@ impl App {
     }
 
     async fn proxy_request(&self, client_addr: &SocketAddr, mut request: Request<Body>) -> Result<Response<Body>> {
-        let token_info = auth::verify_access_token(&self.oidc, &request).await;
-        let token_info = match token_info {
-            Ok(token_info) => token_info,
-            Err(err) => {
-                eprintln!("Token verification failed: {:?}", err);
+        let is_public_route = self.is_public_route(request.uri());
 
-                let response = Response::builder()
-                    .status(500)
-                    .body(Body::empty())
-                    .unwrap();
+        let token_info = if is_public_route {
+            None
+        } else {
+            let token_info = auth::verify_access_token(&self.oidc, &request).await;
 
-                return Ok(response);
-            },
+            match token_info {
+                Ok(Some(token_info)) => Some(token_info),
+                Ok(None) => {
+                    eprintln!("Unauthenticated");
+
+                    let response = Response::builder()
+                        .status(StatusCode::UNAUTHORIZED)
+                        .body(Body::empty())
+                        .unwrap();
+
+                    return Ok(response)
+                }
+                Err(err) => {
+                    eprintln!("Token verification failed: {:?}", err);
+
+                    let response = Response::builder()
+                        .status(StatusCode::INTERNAL_SERVER_ERROR)
+                        .body(Body::empty())
+                        .unwrap();
+
+                    return Ok(response);
+                },
+            }
         };
 
-        let upstream_authority = self.config.upstream_authority.parse().expect("failed to parse upstream_host as authority");
+        let upstream_authority = self.config.upstream_authority.parse()
+            .context("failed to parse upstream_host as authority")?;
         let upstream_scheme = match self.config.upstream_use_https {
                 true => Scheme::HTTPS,
                 false => Scheme::HTTP,
@@ -138,6 +156,12 @@ impl App {
         let response = response.body(body).expect("failed to set response body");
 
         Ok(response)
+    }
+
+    fn is_public_route(&self, uri: &Uri) -> bool {
+        let path = uri.path();
+
+        self.config.public_route_patterns.is_match(path)
     }
 }
 
