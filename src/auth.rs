@@ -2,14 +2,62 @@ use std::str;
 
 use anyhow::*;
 use hyper::{Body, Request, header::AUTHORIZATION};
-use openidconnect::{AccessToken, ClientId, ClientSecret, EmptyExtraTokenFields, IntrospectionUrl, IssuerUrl, StandardTokenIntrospectionResponse, TokenIntrospectionResponse, core::{CoreClient, CoreProviderMetadata}, reqwest::async_http_client};
-use oauth2::basic::BasicTokenType;
+use oauth2::{StandardErrorResponse, StandardRevocableToken};
+use openidconnect::EmptyAdditionalClaims;
+use openidconnect::{AccessToken, ClientId, ClientSecret, EmptyExtraTokenFields, IntrospectionUrl, IssuerUrl, StandardTokenIntrospectionResponse, TokenIntrospectionResponse as _};
+use openidconnect::reqwest::async_http_client;
+use openidconnect::core::{
+    CoreAuthDisplay,
+    CoreAuthPrompt,
+    CoreClient,
+    CoreGenderClaim,
+    CoreJsonWebKey,
+    CoreJsonWebKeyType,
+    CoreJsonWebKeyUse,
+    CoreJweContentEncryptionAlgorithm,
+    CoreJwsSigningAlgorithm,
+    CoreProviderMetadata,
+    CoreTokenResponse,
+    CoreTokenType,
+    CoreTokenIntrospectionResponse,
+    CoreRevocableToken,
+    CoreRevocationErrorResponse,
+    CoreErrorResponseType,
+};
+use serde::{Deserialize, Serialize};
 
 mod async_client;
 
 use crate::Config;
 
-pub async fn create_oidc_client(config: &Config) -> Result<CoreClient> {
+pub type Client = openidconnect::Client<
+    EmptyAdditionalClaims,
+    CoreAuthDisplay,
+    CoreGenderClaim,
+    CoreJweContentEncryptionAlgorithm,
+    CoreJwsSigningAlgorithm,
+    CoreJsonWebKeyType,
+    CoreJsonWebKeyUse,
+    CoreJsonWebKey,
+    CoreAuthPrompt,
+    StandardErrorResponse<CoreErrorResponseType>,
+    CoreTokenResponse,
+    CoreTokenType,
+    TokenIntrospectionResponse,
+    CoreRevocableToken,
+    CoreRevocationErrorResponse,
+>;
+
+pub type TokenIntrospectionResponse = StandardTokenIntrospectionResponse<ExtraTokenFields, CoreTokenType>;
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ExtraTokenFields(serde_value::Value);
+
+impl oauth2::ExtraTokenFields for ExtraTokenFields {}
+
+pub type IntrospectionResult = StandardTokenIntrospectionResponse<ExtraTokenFields, CoreTokenType>;
+
+pub async fn create_oidc_client(config: &Config) -> Result<Client> {
     let openid = &config.openid;
     let provider_metadata = CoreProviderMetadata::discover_async(
             IssuerUrl::new(openid.issuer_url.to_string())?,
@@ -23,7 +71,7 @@ pub async fn create_oidc_client(config: &Config) -> Result<CoreClient> {
         .context("Failed to create introspection URL")?;
     let client_secret = ClientSecret::new(openid.client_secret.clone());
 
-    let oidc_client = CoreClient::from_provider_metadata(provider_metadata, client_id, Some(client_secret))
+    let oidc_client = Client::from_provider_metadata(provider_metadata, client_id, Some(client_secret))
         .set_introspection_uri(introspection_url);
 
     Ok(oidc_client)
@@ -46,7 +94,7 @@ fn extract_access_token(request: &Request<Body>) -> Option<AccessToken> {
     Some(token)
 }
 
-pub async fn verify_access_token(oidc: &CoreClient, request: &Request<Body>) -> Result<Option<IntrospectionResult>> {
+pub async fn verify_access_token(oidc: &Client, request: &Request<Body>) -> Result<Option<IntrospectionResult>> {
     let access_token = match extract_access_token(request) {
         Some(access_token) => access_token,
         None => {
@@ -68,5 +116,3 @@ pub async fn verify_access_token(oidc: &CoreClient, request: &Request<Body>) -> 
 
     Ok(Some(introspection))
 }
-
-pub type IntrospectionResult = StandardTokenIntrospectionResponse<EmptyExtraTokenFields, BasicTokenType>;

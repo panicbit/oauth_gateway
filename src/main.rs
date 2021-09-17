@@ -77,7 +77,7 @@ pub async fn main() -> Result<()> {
 
 struct App {
     config: Config,
-    oidc: CoreClient,
+    oidc: auth::Client,
     http: Client,
 }
 
