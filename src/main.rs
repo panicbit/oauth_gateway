@@ -4,16 +4,17 @@ use std::sync::Arc;
 use std::mem;
 
 use auth::IntrospectionResult;
-use header::{X_USER_ID, X_USER_NAME};
+use header::{X_USER_ID, X_USER_NAME, X_USER_ROLE};
 use hyper::header::{AUTHORIZATION, FORWARDED, HOST, HeaderValue};
 use hyper::http::uri::Scheme;
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server, StatusCode, Uri};
 use oauth2::TokenIntrospectionResponse;
-use openidconnect::core::CoreClient;
 use reqwest::Client;
 use anyhow::*;
+use crate::auth::extensions::Token;
+
 use self::config::Config;
 
 mod config;
@@ -241,7 +242,22 @@ fn enrich_request_with_token_info(request: &mut reqwest::Request, token_info: &I
     }
 
     if let Some(username) = token_info.username() {
-        request.headers_mut().insert(X_USER_NAME, username.parse()?);
+        headers.insert(X_USER_NAME, username.parse()?);
+    }
+
+    match &token_info.extra_fields().0 {
+        Token::Keybase(token) => {
+            for role in &token.realm_access.roles {
+                let role = match role.parse::<HeaderValue>() {
+                    Ok(role) => role,
+                    Err(_) => {
+                        eprintln!("Role is not a valid header value: {}", role);
+                        continue
+                    },
+                };
+                headers.append(X_USER_ROLE, role);
+            }
+        },
     }
 
     Ok(())

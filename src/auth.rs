@@ -2,14 +2,13 @@ use std::str;
 
 use anyhow::*;
 use hyper::{Body, Request, header::AUTHORIZATION};
-use oauth2::{StandardErrorResponse, StandardRevocableToken};
+use oauth2::{StandardErrorResponse};
 use openidconnect::EmptyAdditionalClaims;
-use openidconnect::{AccessToken, ClientId, ClientSecret, EmptyExtraTokenFields, IntrospectionUrl, IssuerUrl, StandardTokenIntrospectionResponse, TokenIntrospectionResponse as _};
+use openidconnect::{AccessToken, ClientId, ClientSecret, IntrospectionUrl, IssuerUrl, StandardTokenIntrospectionResponse, TokenIntrospectionResponse as _};
 use openidconnect::reqwest::async_http_client;
 use openidconnect::core::{
     CoreAuthDisplay,
     CoreAuthPrompt,
-    CoreClient,
     CoreGenderClaim,
     CoreJsonWebKey,
     CoreJsonWebKeyType,
@@ -19,7 +18,6 @@ use openidconnect::core::{
     CoreProviderMetadata,
     CoreTokenResponse,
     CoreTokenType,
-    CoreTokenIntrospectionResponse,
     CoreRevocableToken,
     CoreRevocationErrorResponse,
     CoreErrorResponseType,
@@ -27,6 +25,7 @@ use openidconnect::core::{
 use serde::{Deserialize, Serialize};
 
 mod async_client;
+pub mod extensions;
 
 use crate::Config;
 
@@ -51,7 +50,7 @@ pub type Client = openidconnect::Client<
 pub type TokenIntrospectionResponse = StandardTokenIntrospectionResponse<ExtraTokenFields, CoreTokenType>;
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct ExtraTokenFields(serde_value::Value);
+pub struct ExtraTokenFields(pub extensions::Token);
 
 impl oauth2::ExtraTokenFields for ExtraTokenFields {}
 
