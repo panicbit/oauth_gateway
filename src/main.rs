@@ -48,7 +48,7 @@ pub async fn main() -> Result<()> {
                     let response = app.proxy_request(&client_addr, request).await;
 
                     if let Err(err) = response {
-                        eprintln!("{}", err);
+                        eprintln!("{:#}", err);
 
                         let response = Response::builder()
                             .status(StatusCode::INTERNAL_SERVER_ERROR)
