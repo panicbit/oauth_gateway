@@ -1,18 +1,19 @@
-use std::net::SocketAddr;
 use std::path::Path;
 use std::fs;
 
 use anyhow::*;
 use serde::Deserialize;
 
-use self::{openid::Openid, server::Server};
 
-mod openid;
-mod server;
+pub mod openid;
+pub use openid::Openid;
+
+pub mod server;
+pub use server::Server;
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct Config {
-    pub listen_addr: SocketAddr,
     pub openid: Openid,
     #[serde(rename = "server")]
     pub servers: Vec<Server>,

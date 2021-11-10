@@ -1,16 +1,22 @@
+use std::net::SocketAddr;
+use std::path::PathBuf;
+
 use anyhow::*;
 use hyper::Uri;
 use regex::RegexSet;
 use serde::{Deserialize, Deserializer, de};
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct Server {
-    pub host: String,
+    pub name: String,
+    pub listen: SocketAddr,
     pub upstream: String,
     #[serde(default)]
     pub upstream_tls: bool,
     #[serde(deserialize_with = "deserialize_patterns")]
     pub public_routes: RegexSet,
+    pub tls: Option<Tls>,
 }
 
 impl Server {
@@ -36,4 +42,11 @@ where
         .map_err(de::Error::custom)?;
 
     Ok(patterns)
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct Tls {
+    pub cert: PathBuf,
+    pub key: PathBuf,
 }
