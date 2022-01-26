@@ -13,10 +13,12 @@ use hyper::header::{AUTHORIZATION, FORWARDED, HOST, HeaderValue};
 use hyper::http::uri::Scheme;
 use hyper::server::conn::Http;
 use oauth2::TokenIntrospectionResponse;
+use proto::Proto;
 use reqwest::Client;
 use rustls::sign::{CertifiedKey, RsaSigningKey};
 use rustls::{Certificate, PrivateKey};
 use tls_manager::TlsManager;
+use tokio::io::BufReader;
 use tokio::time::{self, Duration};
 use unicase::Ascii;
 
@@ -33,6 +35,7 @@ mod hyperion;
 mod listener;
 mod listener_manager;
 mod tls_manager;
+mod proto;
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
@@ -121,21 +124,29 @@ async fn handle_client(
         sni_hostname: None,
     };
 
-    match app.tls_manager.acceptor(&accepted.listen_addr) {
-        Some(tls_acceptor) => {
-            let tls_stream = tls_acceptor.accept(accepted.stream).await
-                .context("Tls accept failed")?;
+    let mut stream = BufReader::new(accepted.stream);
 
-            handler.sni_hostname = tls_stream.get_ref().1.sni_hostname()
-                .map(String::from)
-                .map(Arc::new);
+    let proto = proto::detect(&mut stream).await
+        .context("Failed to detect protocol")?;
 
-            Http::new().serve_connection(tls_stream, handler.compat()).await?;
-        },
-        None => {
-            Http::new().serve_connection(accepted.stream, handler.compat()).await?;
-        }
+    eprintln!("Proto: {:?}", proto);
+
+    if proto == Proto::Plain {
+        Http::new().serve_connection(stream, handler.compat()).await?;
+        return Ok(());
     }
+
+    let tls_acceptor = app.tls_manager.acceptor(&accepted.listen_addr)
+        .with_context(|| format!("No TLS acceptor for {}", accepted.listen_addr))?;
+
+    let tls_stream = tls_acceptor.accept(stream).await
+        .context("Tls accept failed")?;
+
+    handler.sni_hostname = tls_stream.get_ref().1.sni_hostname()
+        .map(String::from)
+        .map(Arc::new);
+
+    Http::new().serve_connection(tls_stream, handler.compat()).await?;
 
     Ok(())
 }
