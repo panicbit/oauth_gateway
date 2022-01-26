@@ -1,6 +1,6 @@
 use std::str;
 
-use anyhow::*;
+use anyhow::{Result, Context};
 use hyper::{Body, Request, header::AUTHORIZATION};
 use oauth2::{StandardErrorResponse};
 use openidconnect::EmptyAdditionalClaims;

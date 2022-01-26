@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-use anyhow::*;
+use anyhow::Result;
 use hyper::Uri;
 use regex::RegexSet;
 use serde::{Deserialize, Deserializer, de};

@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::mem;
 
-use anyhow::*;
+use anyhow::{Result, Context, Error, anyhow};
 use auth::IntrospectionResult;
 use futures::TryFutureExt;
 use futures::future::{self, BoxFuture, FutureExt, Ready};

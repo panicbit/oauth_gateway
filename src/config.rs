@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::fs;
 
-use anyhow::*;
+use anyhow::{Result, Context};
 use serde::Deserialize;
 
 

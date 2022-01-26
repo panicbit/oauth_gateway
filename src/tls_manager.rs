@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use anyhow::*;
+use anyhow::{Result, anyhow};
 use parking_lot::RwLock;
 use rustls::ServerConfig;
 use rustls::server::{ClientHello, ResolvesServerCert};
