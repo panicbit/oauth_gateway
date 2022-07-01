@@ -1,5 +1,6 @@
 [package]
 name = "oauth_gateway"
+repository = "https://github.com/panicbit/oauth_gateway"
 version = "0.1.0"
 edition = "2021"
 
